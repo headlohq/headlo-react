@@ -128,7 +128,7 @@ function toEntry<T extends ComponentRow>(row: T): RegistryEntry {
 
 type ListFn<T> = () => Promise<{ components: T[]; signature: string | null; error: string | null }>
 
-export function useComponents<T extends ComponentRow>(
+export function useCmsComponents<T extends ComponentRow>(
   source: HeadloClient | ListFn<T>,
   opts?: {
     publicKey?:      JsonWebKey | null
