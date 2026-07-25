@@ -1,11 +1,19 @@
-export { HeadloAuthProvider, PropServer }              from './context'
+// Side-effect import — pulls ambient JSX types for PROP custom elements
+// (<headlo-auth-button>, etc.) into every consumer of `headlo-react`.
+// Also re-exports the per-element Props types so consumers can build their
+// own JSX augmentation without duplicating the attribute list.
+import './custom-elements'
+export type { HeadloAuthButtonProps, HeadloAskWidgetProps } from './custom-elements'
+
+export { HeadloAuthProvider, PropServer, SiteProvider, useSiteConfig } from './context'
 export { PropPreload }                                 from './PropPreload'
-export type { PropServerConfig }                       from './context'
+export type { PropServerConfig, SiteConfig }           from './context'
 export { useCollection }                              from './useCollection'
 export { useList }                                    from './useList'
 export { useRecord }                                  from './useRecord'
 export { useMod }                                     from './useMod'
 export { useSite }                                    from './useSite'
+export { useHeadloClient }                            from './useHeadloClient'
 export { useCmsComponents, findComponents, componentUtils, configureComponentUtils, compileComponentCode, tryCompileComponentCode } from './useCmsComponents'
 export type { RegistryEntry }                         from './useCmsComponents'
 export { useProp }                                    from './useProp'
@@ -16,3 +24,9 @@ export { useComponent }                               from './useComponent'
 export type { UseComponentResult }                    from './useComponent'
 export { usePropService }                             from './context'
 export { useService }                                 from './useService'
+export { useUserIdentity }                            from './useUserIdentity'
+export type { UserIdentityClaims, UseUserIdentityResult } from './useUserIdentity'
+export { UserIdentity }                               from './UserIdentity'
+export type { UserIdentityProps }                     from './UserIdentity'
+export { MultiAuthBridge }                            from './MultiAuthBridge'
+export type { AuthSource, MultiAuthBridgeProps }      from './MultiAuthBridge'

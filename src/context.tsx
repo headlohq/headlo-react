@@ -55,3 +55,30 @@ export function usePropServer(): PropServerConfig {
 export function usePropService(): PropService {
   return React.useContext(PropServerContext).prop
 }
+
+// ---------------------------------------------------------------------------
+// SiteProvider — supplies anonKey + apiUrl for data hooks (useCollection,
+// useRecord, useList). Lets callers write `useCollection('posts')` without
+// passing an anonKey arg on every call. Companion to PropServer (which does
+// the equivalent for publishableKey + apiUrl on PROP hooks).
+// ---------------------------------------------------------------------------
+
+export interface SiteConfig {
+  anonKey?: string
+  apiUrl?:  string
+}
+
+const SiteContext = React.createContext<SiteConfig>({})
+
+export function SiteProvider({
+  anonKey,
+  apiUrl,
+  children,
+}: SiteConfig & { children: React.ReactNode }) {
+  const value = React.useMemo(() => ({ anonKey, apiUrl }), [anonKey, apiUrl])
+  return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>
+}
+
+export function useSiteConfig(): SiteConfig {
+  return React.useContext(SiteContext)
+}

@@ -1,21 +1,46 @@
 ﻿import { useState, useEffect, useContext } from 'react'
 import { createClient } from 'headlo'
 import type { HeadloResult, CollectionListResponse, ListOptions } from 'headlo'
-import { HeadloAuthContext } from './context'
+import { HeadloAuthContext, useSiteConfig } from './context'
 
 const DEFAULT_API = 'https://api.headlo.com'
 
+// useCollection's options can now carry the React-specific extras
+// (anonKey / apiUrl / getToken / userToken) directly, so callers can write:
+//
+//   useCollection('posts', { anonKey })
+//   useCollection('posts', { limit: 10, anonKey, getToken })
+//
+// instead of the old positional form `useCollection('posts', undefined, anonKey, …)`.
+// Positional args still work for backwards compat — they take precedence over opts.
+export interface UseCollectionOptions extends ListOptions {
+  anonKey?:   string
+  apiUrl?:    string
+  getToken?:  () => Promise<string | null>
+  userToken?: string
+}
+
 export function useCollection(
   collectionId: string,
-  opts?: ListOptions,
+  opts?: UseCollectionOptions,
   anonKey?: string,
   apiUrl?: string,
   getToken?: () => Promise<string | null>,
   userToken?: string,
 ) {
-  const key = anonKey ?? (typeof window !== 'undefined' ? (window as Window & { __HEADLO_ANON_KEY__?: string }).__HEADLO_ANON_KEY__ : undefined) ?? ''
+  // Resolution priority (first non-null wins):
+  //   1. Positional arg
+  //   2. opts object
+  //   3. <SiteProvider> context (for anonKey/apiUrl) or <HeadloAuthProvider> (for getToken)
+  //   4. window.__HEADLO_ANON_KEY__ legacy global (anonKey only)
+  //   5. Empty string / undefined
+  const site = useSiteConfig()
   const authCtx = useContext(HeadloAuthContext)
-  const resolvedGetToken = getToken ?? authCtx?.getToken
+  const resolvedAnonKey   = anonKey   ?? opts?.anonKey   ?? site.anonKey ?? (typeof window !== 'undefined' ? (window as Window & { __HEADLO_ANON_KEY__?: string }).__HEADLO_ANON_KEY__ : undefined) ?? ''
+  const resolvedApiUrl    = apiUrl    ?? opts?.apiUrl    ?? site.apiUrl
+  const resolvedUserToken = userToken ?? opts?.userToken
+  const resolvedGetToken  = getToken  ?? opts?.getToken  ?? authCtx?.getToken
+  const key = resolvedAnonKey
 
   const [data,        setData]        = useState<HeadloResult<CollectionListResponse> | null>(null)
   const [loading,     setLoading]     = useState(true)
@@ -23,8 +48,10 @@ export function useCollection(
   const [cursor,      setCursor]      = useState<string | undefined>(undefined)
   const [cursorStack, setCursorStack] = useState<string[]>([])
 
-  // Stable key — excludes cursor so changing limit/filter resets to page 1
-  const stableKey = JSON.stringify({ ...opts, cursor: undefined })
+  // Stable key — excludes cursor + React-only fields so changing limit/filter resets to page 1
+  // (anonKey/apiUrl/getToken/userToken are React-hook plumbing; never reach the SDK collection() call)
+  const { anonKey: _ak, apiUrl: _au, getToken: _gt, userToken: _ut, ...listOpts } = opts ?? {}
+  const stableKey = JSON.stringify({ ...listOpts, cursor: undefined })
 
   // Reset to page 1 when collection or non-cursor opts change
   useEffect(() => {
@@ -35,8 +62,8 @@ export function useCollection(
   useEffect(() => {
     if (!key || !collectionId) return
     setLoading(true)
-    createClient(key, { apiUrl: apiUrl ?? DEFAULT_API, getToken: resolvedGetToken, userToken })
-      .collection(collectionId, { ...opts, cursor })
+    createClient(key, { apiUrl: resolvedApiUrl ?? DEFAULT_API, getToken: resolvedGetToken, userToken: resolvedUserToken })
+      .collection(collectionId, { ...listOpts, cursor })
       .list()
       .then(res => { setData(res); setError(res.error) })
       .catch(e  => setError(e?.message ?? 'Request failed'))
@@ -45,7 +72,7 @@ export function useCollection(
 
   const count       = data?.count ?? 0
   const nextCursor  = data?.next_cursor ?? null
-  const limit       = opts?.limit ?? 50
+  const limit       = listOpts?.limit ?? 50
   const currentPage = cursorStack.length + 1
   const totalPages  = Math.ceil(count / limit) || 1
 
